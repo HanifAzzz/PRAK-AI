@@ -127,7 +127,7 @@ export function normalizeArticle(article) {
     cover: image,
     author: article.penulis_detail || "Redaksi Paham.ID",
     authorImage: "",
-    date: formatDate(article.tanggal_publikasi || article.created_at),
+    date: formatDate(article.tanggal_专门_publikasi || article.created_at),
     timeAgo: formatTimeAgo(article.tanggal_publikasi || article.created_at),
     readTime: article.read_time || "2 min read",
     description: article.ringkasan || "",
@@ -150,7 +150,11 @@ export function normalizeArticle(article) {
 }
 
 export async function fetchArticles(params = {}) {
-  const payload = await apiFetch("/berita/", { params });
+  // Menjaga token otomatis aktif saat memanggil artikel di dashboard
+  const payload = await apiFetch("/berita/", { 
+    params,
+    auth: Boolean(params.all || params.author || params.status) 
+  });
   return unwrapList(payload).map(normalizeArticle);
 }
 
@@ -232,4 +236,22 @@ export async function fetchNotifications() {
     time: formatTimeAgo(item.tgl_notifikasi),
     type: item.tipe,
   }));
+}
+
+export async function createArticle(data) {
+  const body = data instanceof FormData ? data : JSON.stringify(data);
+  return apiFetch("/berita/", {
+    method: "POST",
+    auth: true,
+    body,
+  });
+}
+
+export async function updateArticle(id, data) {
+  const body = data instanceof FormData ? data : JSON.stringify(data);
+  return apiFetch(`/berita/${id}/`, {
+    method: "PATCH",
+    auth: true,
+    body,
+  });
 }
