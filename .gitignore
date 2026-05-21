@@ -44,3 +44,4 @@ staticfiles/
 media/
 *.sqlite3
 .vercel
+.env*.local

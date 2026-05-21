@@ -150,7 +150,6 @@ export function normalizeArticle(article) {
 }
 
 export async function fetchArticles(params = {}) {
-  // Menjaga token otomatis aktif saat memanggil artikel di dashboard
   const payload = await apiFetch("/berita/", { 
     params,
     auth: Boolean(params.all || params.author || params.status) 
@@ -254,4 +253,14 @@ export async function updateArticle(id, data) {
     auth: true,
     body,
   });
+}
+
+export async function fetchCategories() {
+  const payload = await apiFetch("/kategori/");
+  return unwrapList(payload).map((category) => ({
+    id: category.id_kategori,
+    apiId: category.id_kategori,
+    name: category.nama_kategori,
+    slug: category.slug,
+  }));
 }

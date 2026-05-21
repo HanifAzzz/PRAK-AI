@@ -1,8 +1,7 @@
 // src/pages/WriteNews.jsx
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createArticle, fetchCategories } from "../../services/api";
-
+import { createArticle, fetchCategories } from "../../../services/api"; //  BENAR
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const MAX_WORDS = 400;
 
