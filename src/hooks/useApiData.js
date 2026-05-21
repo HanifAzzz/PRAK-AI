@@ -1,41 +1,58 @@
-import { useEffect, useState } from "react";
+// src/hooks/useApiData.js
+import { useEffect, useMemo, useState } from "react";
 import { fetchArticle, fetchArticles, fetchBookmarks, fetchNotifications } from "../services/api";
 
 export function useArticles(params = {}) {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const paramsKey = JSON.stringify(params);
+
+  // Menggunakan useMemo agar alamat memori objek params dikunci 
+  // dan gak memicu useEffect jalan terus-menerus pas re-render
+  const MemoizedParams = useMemo(() => {
+    return params;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(params)]);
 
   useEffect(() => {
+    let alive = true;
     setLoading(true);
     setError("");
 
+    // Timer timeout 10 detik
     const timer = window.setTimeout(() => {
-      setArticles([]);
-      setError("Koneksi API terlalu lama merespons.");
-      setLoading(false);
+      if (alive) {
+        setArticles([]);
+        setError("Koneksi API terlalu lama merespons.");
+        setLoading(false);
+      }
     }, 10000);
 
     const loadArticles = async () => {
       try {
-        const data = await fetchArticles(params);
+        const data = await fetchArticles(MemoizedParams);
+        if (!alive) return;
+        
         window.clearTimeout(timer);
         setArticles(data);
         setError("");
       } catch (err) {
+        if (!alive) return;
         window.clearTimeout(timer);
         setArticles([]);
         setError(err.message || "Gagal memuat berita.");
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     };
 
     loadArticles();
 
-    return () => window.clearTimeout(timer);
-  }, [paramsKey]);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [MemoizedParams]); // <--- Dikunci pake MemoizedParams yang stabil
 
   return { articles, loading, error };
 }

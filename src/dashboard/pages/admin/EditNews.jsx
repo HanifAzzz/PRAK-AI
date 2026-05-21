@@ -1,6 +1,7 @@
 // src/pages/admin/EditNews.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import axios from "axios"; // <--- Axios masuk buat nembak upload otomatis ke cloud
 import { writingTips } from "../../config/staticConfig";
 import { fetchCategories, updateArticle } from "../../services/api";
 
@@ -668,7 +669,8 @@ export default function EditNews() {
     updatedAt: new Date().toISOString(),
   });
 
-  const handleSaveChanges = () => {
+  // --- LOGIC BARU: DIUBAH MENJADI ASYNC BIAR BISA UPLOAD GAMBAR ---
+  const handleSaveChanges = async () => {
     const updatedArticle = buildPayload();
     const category = categories.find((item) => item.name === updatedArticle.category);
 
@@ -680,21 +682,41 @@ export default function EditNews() {
     formData.append("id_kategori", category?.apiId || sourceArticle.categoryId);
     formData.append("read_time", updatedArticle.readTime);
 
+    let finalImageUrl = thumbnail; 
+
+    // Proses konversi file mentah dari laptop ke link teks via ImgBB secara otomatis
     if (thumbnailFile) {
-      formData.append("gambar_url", thumbnailFile);
+      showToast("Mengunggah gambar...");
+      const imgData = new FormData();
+      imgData.append("image", thumbnailFile);
+
+      try {
+        const res = await axios.post("https://api.imgbb.com/1/upload?key=648f0775a28b62dbba48e4cfd185e58e", imgData);
+        finalImageUrl = res.data.data.url; 
+      } catch (err) {
+        console.error("Gagal otomatis upload ke ImgBB", err);
+        showToast("Gagal unggah gambar baru, memakai gambar lama");
+      }
     }
 
-    updateArticle(sourceArticle.apiId || sourceArticle.id, formData).catch(() => {});
-    showToast("Perubahan berhasil disimpan");
+    // Mengirim teks link URL murni agar lolos validasi CharField di Django lu
+    formData.append("gambar_url", finalImageUrl); 
 
-    setTimeout(() => {
-      navigate("/manage-news", {
-        state: {
-          toastType: "updated",
-          updatedArticle,
-        },
-      });
-    }, 800);
+    try {
+      await updateArticle(sourceArticle.apiId || sourceArticle.id, formData);
+      showToast("Perubahan berhasil disimpan");
+
+      setTimeout(() => {
+        navigate("/manage-news", {
+          state: {
+            toastType: "updated",
+            updatedArticle,
+          },
+        });
+      }, 800);
+    } catch (error) {
+      showToast("Gagal menyimpan perubahan ke server");
+    }
   };
 
   return (

@@ -1,6 +1,8 @@
+// src/pages/NewsPage.jsx
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useArticles } from "../../hooks/useApiData";
+import { getAccessToken } from "../../services/api"; // <--- Ambil kurir pembaca token kelompok lu
 import NewsletterBox from "../../components/Newsletter";
 
 const categories = [
@@ -82,7 +84,8 @@ const pageCss = `
     -webkit-appearance: none;
     border: 0;
     background: transparent;
-    padding: 0 0 8px;
+    padding: 0;
+    padding-bottom: 8px;
     color: #6b7280;
     font-size: 10px;
     font-weight: 800;
@@ -526,9 +529,8 @@ export default function NewsPage() {
   const { articles, loading, error } = useArticles();
   const [activeCategory, setActiveCategory] = useState("ALL");
 
-  // true = sudah login, pagination bisa dipakai
-  // false = belum login, newsletter muncul
-  const [isLoggedIn] = useState(true);
+  // REVISI SENSOR LOGIN: Otomatis mendeteksi status akses dari token asli di localStorage kelompok lu
+  const isLoggedIn = Boolean(getAccessToken());
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;

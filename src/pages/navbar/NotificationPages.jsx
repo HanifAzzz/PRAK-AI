@@ -1,3 +1,4 @@
+// src/pages/NotificationPages.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -13,7 +14,7 @@ import '../../styles/notifications.css';
 
 const NotificationPages = () => {
   const navigate = useNavigate();
-  const { notifications: databaseNotifications } = useNotifications();
+  const { notifications: databaseNotifications, loading } = useNotifications();
 
   // Helper function to get icon based on category
   const getIcon = (category) => {
@@ -23,96 +24,115 @@ const NotificationPages = () => {
       POLITICS: Landmark,
       SOCIAL: User,
     };
-    return iconMap[category] || BookOpen;
+    const key = String(category || "").toUpperCase();
+    return iconMap[key] || BookOpen;
   };
 
-  const notifications = databaseNotifications.map((notification, index) => ({
-    ...notification,
-    icon: notification.type === "comment" ? MessageSquare : getIcon(notification.type),
-    bgClass: ['bg-red-light', 'bg-yellow-light', 'bg-green-light', 'bg-blue-light', 'bg-purple-light'][index % 5]
-  }));
+  // Memetakan seluruh data notification dari database secara dinamis tanpa potongan kaku
+  const notifications = (databaseNotifications || []).map((notification, index) => {
+    const isComment = notification.type === "comment" || notification.category?.toLowerCase() === "comment";
+    return {
+      ...notification,
+      id: notification.id || `notif_${index}_${Date.now()}`,
+      title: notification.title || "Notifikasi Baru",
+      excerpt: notification.excerpt || notification.message || "Detail notifikasi baru telah masuk.",
+      time: notification.time || notification.date || "Baru saja",
+      icon: isComment ? MessageSquare : getIcon(notification.type || notification.category),
+      bgClass: ['bg-red-light', 'bg-yellow-light', 'bg-green-light', 'bg-blue-light', 'bg-purple-light'][index % 5]
+    };
+  });
 
-  // Split into today, this week, and comment
-  const todayNotifications = notifications.slice(0, 2);
-  const weekNotifications = notifications.slice(2, 4);
-  const commentNotification = notifications[4];
+  // Memisahkan kategori komentar dan berita secara dinamis agar tidak memotong jumlah data asli
+  const commentNotifications = notifications.filter(n => n.type === "comment" || n.category?.toLowerCase() === "comment");
+  const generalNotifications = notifications.filter(n => n.type !== "comment" && n.category?.toLowerCase() !== "comment");
 
   return (
     <div className="notifications-page-container">
       {/* Header */}
       <div className="notifications-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
+        <button className="back-button" onClick={() => navigate(-1)} type="button">
           <ChevronLeft size={32} />
         </button>
         <div className="notifications-title-container">
           <h1>Notifications</h1>
-          <span className="notifications-badge">+2</span>
+          {notifications.length > 0 && (
+            <span className="notifications-badge">+{notifications.length}</span>
+          )}
         </div>
       </div>
 
-      {/* Hari Ini Section */}
-      <div className="notifications-section">
-        <div className="notifications-section-title">HARI INI</div>
-
-        {todayNotifications.length === 0 && (
+      {/* Main Content */}
+      {loading ? (
+        <div className="notifications-section">
           <div className="notification-item">
             <div className="notification-content">
-              <h4>Belum ada notifikasi</h4>
-              <p>Notifikasi dari database akan muncul di sini.</p>
+              <p>Memuat notifikasi terbaru...</p>
             </div>
           </div>
-        )}
-        
-        {todayNotifications.map((notification) => {
-          const IconComponent = notification.icon;
-          return (
-            <div key={notification.id} className={`notification-item ${notification.unread ? 'unread' : ''}`}>
-                <div className={`notification-icon-wrapper ${notification.bgClass}`}>
-                  <IconComponent size={24} />
-                </div>
-                <div className="notification-content">
-                  <h4>{notification.title}</h4>
-                  <p>{notification.excerpt}</p>
-                </div>
-                <div className="notification-time">{notification.time}</div>
-              </div>
-          );
-        })}
-      </div>
+        </div>
+      ) : (
+        <>
+          {/* Hari Ini / Berita Baru Section */}
+          <div className="notifications-section">
+            <div className="notifications-section-title">BERITA & INFORMASI BARU</div>
 
-      {/* Minggu Ini Section */}
-      <div className="notifications-section">
-        <div className="notifications-section-title">MINGGU INI</div>
-        
-        {weekNotifications.map((notification) => {
-          const IconComponent = notification.icon;
-          return (
-            <div key={notification.id} className={`notification-item ${notification.unread ? 'unread' : ''}`}>
-                <div className={`notification-icon-wrapper ${notification.bgClass}`}>
-                  <IconComponent size={24} />
-                </div>
+            {generalNotifications.length === 0 && (
+              <div className="notification-item">
                 <div className="notification-content">
-                  <h4>{notification.title}</h4>
-                  <p>{notification.excerpt}</p>
+                  <h4>Belum ada notifikasi baru</h4>
+                  <p>Pemberitahuan artikel atau update kategori akan muncul di sini.</p>
                 </div>
-                <div className="notification-time">{notification.time}</div>
               </div>
-          );
-        })}
-
-        {commentNotification && (
-          <div className="notification-item">
-            <div className="notification-icon-wrapper bg-purple-light">
-              <MessageSquare size={24} />
-            </div>
-            <div className="notification-content">
-              <h4>Komentar Baru : {commentNotification.title}</h4>
-              <p>{commentNotification.excerpt}</p>
-            </div>
-            <div className="notification-time">{commentNotification.time}</div>
+            )}
+            
+            {generalNotifications.map((notification) => {
+              const IconComponent = notification.icon;
+              return (
+                <div key={notification.id} className={`notification-item ${notification.unread ? 'unread' : ''}`}>
+                  <div className={`notification-icon-wrapper ${notification.bgClass}`}>
+                    <IconComponent size={24} />
+                  </div>
+                  <div className="notification-content">
+                    <h4>{notification.title}</h4>
+                    <p>{notification.excerpt}</p>
+                  </div>
+                  <div className="notification-time">{notification.time}</div>
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+
+          {/* Aktivitas Komentar Section */}
+          <div className="notifications-section">
+            <div className="notifications-section-title">AKTIVITAS KOMENTAR</div>
+            
+            {commentNotifications.length === 0 && (
+              <div className="notification-item">
+                <div className="notification-content">
+                  <h4>Belum ada interaksi komentar</h4>
+                  <p>Notifikasi balasan atau komentar baru pada artikel lu akan tampil di sini.</p>
+                </div>
+              </div>
+            )}
+
+            {commentNotifications.map((notification) => {
+              const IconComponent = notification.icon;
+              return (
+                <div key={notification.id} className={`notification-item ${notification.unread ? 'unread' : ''}`}>
+                  <div className={`notification-icon-wrapper ${notification.bgClass}`}>
+                    <IconComponent size={24} />
+                  </div>
+                  <div className="notification-content">
+                    <h4>Komentar Baru: {notification.title}</h4>
+                    <p>{notification.excerpt}</p>
+                  </div>
+                  <div className="notification-time">{notification.time}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };

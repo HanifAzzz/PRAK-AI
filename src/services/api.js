@@ -1,3 +1,4 @@
+// src/services/api.js
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -25,7 +26,7 @@ function buildUrl(path, params = {}) {
   return url.toString();
 }
 
-async function apiFetch(path, { params, auth = false, ...options } = {}) {
+async function apiFetch(path, { params, auth = true, ...options } = {}) {
   const headers = new Headers(options.headers || {});
   const token = getAccessToken();
 
@@ -105,8 +106,10 @@ export function normalizeComment(comment) {
 }
 
 export function normalizeArticle(article) {
+  if (!article) return null;
+  
   const category = article.kategori_detail?.nama_kategori || "General";
-  const image = absoluteMediaUrl(article.gambar_url);
+  const image = absoluteMediaUrl(article.gambar_url || article.gambar);
   const comments = Array.isArray(article.komentar)
     ? article.komentar.map(normalizeComment)
     : [];
@@ -127,7 +130,8 @@ export function normalizeArticle(article) {
     cover: image,
     author: article.penulis_detail || "Redaksi Paham.ID",
     authorImage: "",
-    date: formatDate(article.tanggal_专门_publikasi || article.created_at),
+    // FIX TYPO: Membuang karakter Hanzi asing dari penulisan tanggal publikasi
+    date: formatDate(article.tanggal_publikasi || article.created_at),
     timeAgo: formatTimeAgo(article.tanggal_publikasi || article.created_at),
     readTime: article.read_time || "2 min read",
     description: article.ringkasan || "",
@@ -135,7 +139,7 @@ export function normalizeArticle(article) {
     summary: article.ringkasan || "",
     content: article.isi_lengkap || "",
     status: article.status,
-    reads: Number(article.view_count || 0),
+    reads: Number(article.view_count || 0), // Menghubungkan langsung reads ke view_count dinamis Django lu
     likes: reactionTotal,
     comments: comments.length,
     commentItems: comments,
@@ -150,9 +154,10 @@ export function normalizeArticle(article) {
 }
 
 export async function fetchArticles(params = {}) {
+  // Dipaksa selalu true agar halaman list writer & admin tidak terkena eror 401
   const payload = await apiFetch("/berita/", { 
     params,
-    auth: Boolean(params.all || params.author || params.status) 
+    auth: true
   });
   return unwrapList(payload).map(normalizeArticle);
 }
@@ -160,6 +165,7 @@ export async function fetchArticles(params = {}) {
 export async function login(identifier, password) {
   const payload = await apiFetch("/auth/login/", {
     method: "POST",
+    auth: false, // Login tidak butuh token auth bawaan
     body: JSON.stringify({
       username: identifier,
       password,
@@ -185,12 +191,13 @@ export async function login(identifier, password) {
 export async function register(data) {
   return apiFetch("/auth/register/", {
     method: "POST",
+    auth: false, // Registrasi tidak butuh token auth bawaan
     body: JSON.stringify(data),
   });
 }
 
 export async function fetchArticle(id) {
-  const payload = await apiFetch(`/berita/${id}/`);
+  const payload = await apiFetch(`/berita/${id}/`, { auth: false });
   return normalizeArticle(payload);
 }
 
@@ -238,7 +245,32 @@ export async function fetchNotifications() {
 }
 
 export async function createArticle(data) {
-  const body = data instanceof FormData ? data : JSON.stringify(data);
+  let body;
+
+  if (data instanceof FormData) {
+    body = data;
+    // Otomatis ubah field FE ke field penamaan serializer Django kelompok lu
+    if (body.has("judul")) {
+      body.append("judul", body.get("judul"));
+    }
+    if (body.has("isi_lengkap")) {
+      body.append("isi_lengkap", body.get("isi_lengkap"));
+    }
+    if (body.has("gambar_url")) {
+      body.append("gambar_url", body.get("gambar_url"));
+    }
+  } else {
+    body = JSON.stringify({
+      judul: data.judul,
+      ringkasan: data.ringkasan,
+      isi_lengkap: data.isi_lengkap,
+      status: data.status,
+      id_kategori: data.id_kategori,
+      read_time: data.read_time,
+      gambar_url: data.gambar_url,
+    });
+  }
+
   return apiFetch("/berita/", {
     method: "POST",
     auth: true,
@@ -247,7 +279,31 @@ export async function createArticle(data) {
 }
 
 export async function updateArticle(id, data) {
-  const body = data instanceof FormData ? data : JSON.stringify(data);
+  let body;
+
+  if (data instanceof FormData) {
+    body = data;
+    if (body.has("judul")) {
+      body.append("judul", body.get("judul"));
+    }
+    if (body.has("isi_lengkap")) {
+      body.append("isi_lengkap", body.get("isi_lengkap"));
+    }
+    if (body.has("gambar_url")) {
+      body.append("gambar_url", body.get("gambar_url"));
+    }
+  } else {
+    body = JSON.stringify({
+      judul: data.judul,
+      ringkasan: data.ringkasan,
+      isi_lengkap: data.isi_lengkap,
+      status: data.status,
+      id_kategori: data.id_kategori,
+      read_time: data.read_time,
+      gambar_url: data.gambar_url,
+    });
+  }
+
   return apiFetch(`/berita/${id}/`, {
     method: "PATCH",
     auth: true,
@@ -256,7 +312,7 @@ export async function updateArticle(id, data) {
 }
 
 export async function fetchCategories() {
-  const payload = await apiFetch("/kategori/");
+  const payload = await apiFetch("/kategori/", { auth: false });
   return unwrapList(payload).map((category) => ({
     id: category.id_kategori,
     apiId: category.id_kategori,

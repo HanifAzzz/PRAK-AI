@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import axios from "axios"; // <--- Ini masuk buat handle upload gambar otomatis ke ImgBB
 import { writingTips } from "../../config/staticConfig";
 import { fetchCategories, updateArticle } from "../../services/api";
 
@@ -802,7 +803,8 @@ export default function EditArticle() {
     ...overrides,
   });
 
-  const saveToDatabase = (updatedArticle) => {
+  // --- REVISI DI SINI: UBAH PROSES INPUT MENJADI ASYNC BIAR BISA HIT API IMGBB ---
+  const saveToDatabase = async (updatedArticle) => {
     const category = categories.find((item) => item.name === updatedArticle.category);
 
     const formData = new FormData();
@@ -813,30 +815,50 @@ export default function EditArticle() {
     formData.append("id_kategori", category?.apiId || sourceArticle.categoryId);
     formData.append("read_time", updatedArticle.readTime);
 
+    let finalImageUrl = thumbnail;
+
+    // Jika user memasukkan file gambar baru dari komputernya
     if (thumbnailFile) {
-      formData.append("gambar_url", thumbnailFile);
+      const imgData = new FormData();
+      imgData.append("image", thumbnailFile);
+
+      try {
+        // Otomatis convert gambar mentah ke cloud link string URL via ImgBB
+        const res = await axios.post("https://api.imgbb.com/1/upload?key=648f0775a28b62dbba48e4cfd185e58e", imgData);
+        finalImageUrl = res.data.data.url; 
+      } catch (err) {
+        console.error("Gagal otomatis upload ke ImgBB di sisi penulis", err);
+      }
     }
+
+    // Mengirim tautan string teks murni agar lolos CharField di Django lu
+    formData.append("gambar_url", finalImageUrl);
 
     return updateArticle(sourceArticle.apiId || sourceArticle.id, formData);
   };
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     const updatedArticle = buildPayload({
       status: "draft",
       rejectionReason: null,
     });
 
-    saveToDatabase(updatedArticle).catch(() => {});
-    showToast("Artikel Berhasil Diperbarui");
+    try {
+      showToast("Menyimpan draft...");
+      await saveToDatabase(updatedArticle);
+      showToast("Artikel Berhasil Diperbarui");
 
-    setTimeout(() => {
-      navigate("/my-articles", {
-        state: { updatedArticle },
-      });
-    }, 800);
+      setTimeout(() => {
+        navigate("/my-articles", {
+          state: { updatedArticle },
+        });
+      }, 800);
+    } catch (e) {
+      showToast("Gagal menyimpan perubahan");
+    }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
 
     const updatedArticle = buildPayload({
@@ -844,14 +866,19 @@ export default function EditArticle() {
       rejectionReason: null,
     });
 
-    saveToDatabase(updatedArticle).catch(() => {});
-    showToast("Artikel Berhasil Dikirim");
+    try {
+      showToast("Mengirim artikel...");
+      await saveToDatabase(updatedArticle);
+      showToast("Artikel Berhasil Dikirim");
 
-    setTimeout(() => {
-      navigate("/my-articles", {
-        state: { updatedArticle },
-      });
-    }, 800);
+      setTimeout(() => {
+        navigate("/my-articles", {
+          state: { updatedArticle },
+        });
+      }, 800);
+    } catch (e) {
+      showToast("Gagal mengirim artikel");
+    }
   };
 
   const handleBack = () => {

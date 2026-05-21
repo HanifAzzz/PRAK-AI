@@ -1,3 +1,4 @@
+// src/pages/SavedPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { deleteBookmark, getAccessToken, updateBookmark } from "../../services/api";
@@ -35,10 +36,6 @@ const css = `
     margin: 0 auto;
   }
 
-  /*
-    Fix gap putih sebelum footer.
-    Ini cuma target footer yang muncul setelah SavedPage.
-  */
   .saved-page + footer,
   .saved-page + .footer,
   .saved-page + .site-footer {
@@ -46,7 +43,7 @@ const css = `
   }
 
   /* =========================
-     BELUM LOGIN
+      BELUM LOGIN
   ========================= */
 
   .saved-auth-page {
@@ -116,7 +113,7 @@ const css = `
   }
 
   /* =========================
-     LOGIN TAPI KOSONG
+      LOGIN TAPI KOSONG
   ========================= */
 
   .saved-empty-page {
@@ -178,7 +175,7 @@ const css = `
   }
 
   /* =========================
-     ADA SAVED NEWS
+      ADA SAVED NEWS
   ========================= */
 
   .saved-list-page {
@@ -634,7 +631,7 @@ export default function SavedPage() {
               visibleNews.map((item) => (
                 <article className="saved-item" key={item.id}>
                   <img
-                    src={item.image}
+                    src={item.image || item.thumbnail}
                     alt={item.title}
                     className="saved-item-img"
                   />
@@ -650,7 +647,8 @@ export default function SavedPage() {
 
                     <h2 className="saved-item-title">{item.title}</h2>
 
-                    <p className="saved-item-desc">{item.description}</p>
+                    {/* REVISI DI SINI: Membaca dari data hasil normalisasi yang pas */}
+                    <p className="saved-item-desc">{item.excerpt || item.synopsis || "Deskripsi tidak tersedia."}</p>
 
                     <div className="saved-item-actions">
                       <button

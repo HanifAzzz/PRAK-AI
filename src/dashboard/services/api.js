@@ -1,3 +1,4 @@
+// src/services/api.js
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -27,7 +28,8 @@ function buildUrl(path, params = {}) {
   return url.toString();
 }
 
-async function apiFetch(path, { params, auth = false, ...options } = {}) {
+// Default auth diubah menjadi true agar seluruh request dashboard otomatis membawa token
+async function apiFetch(path, { params, auth = true, ...options } = {}) {
   const headers = new Headers(options.headers || {});
   const token = getAccessToken();
 
@@ -87,7 +89,8 @@ function formatDate(value) {
 }
 
 export function normalizeArticle(article = {}) {
-  const image = absoluteMediaUrl(article.gambar_url || article.image || article.thumbnail);
+  // Menyesuaikan pembacaan respons dari backend Django yang menggunakan key baru
+  const image = absoluteMediaUrl(article.gambar || article.gambar_url || article.image || article.thumbnail);
   const comments = Array.isArray(article.komentar) ? article.komentar.length : Number(article.comments || 0);
   const reactions = article.reaksi_summary || {};
   const likes = Object.values(reactions).reduce(
@@ -98,13 +101,13 @@ export function normalizeArticle(article = {}) {
   return {
     id: article.id_berita || article.id,
     apiId: article.id_berita || article.apiId || article.id,
-    title: article.judul || article.title || "Untitled Article",
+    title: article.judul_berita || article.judul || article.title || "Untitled Article",
     category: article.kategori_detail?.nama_kategori || article.category || "General",
     categoryId: article.id_kategori || article.categoryId,
     excerpt: article.ringkasan || article.excerpt || article.synopsis || "",
     synopsis: article.ringkasan || article.synopsis || article.excerpt || "",
-    body: article.isi_lengkap || article.body || article.content || "",
-    content: article.isi_lengkap || article.content || article.body || "",
+    body: article.isi_berita || article.isi_lengkap || article.body || article.content || "",
+    content: article.isi_berita || article.isi_lengkap || article.content || article.body || "",
     image,
     thumbnail: image,
     readTime: article.read_time || article.readTime || "2 min read",
@@ -132,10 +135,10 @@ export function normalizeCategory(category = {}) {
 }
 
 export async function fetchArticles(params = {}) {
-  const token = getAccessToken();
+  // Dipaksa selalu true agar halaman list writer & admin tidak terkena eror 401 akibat bypass token
   const payload = await apiFetch("/berita/", {
     params,
-    auth: Boolean(params.all || params.author),
+    auth: true,
   });
   return unwrapList(payload).map(normalizeArticle);
 }
@@ -155,7 +158,35 @@ export async function deleteArticle(id) {
 }
 
 export async function createArticle(data) {
-  const body = data instanceof FormData ? data : JSON.stringify(data);
+  let body;
+
+  if (data instanceof FormData) {
+    body = data;
+    // Remap data FE agar match dengan field yang didefinisikan di Django serializer lu
+    if (body.has("judul")) {
+      body.append("judul_berita", body.get("judul"));
+      body.delete("judul");
+    }
+    if (body.has("isi_lengkap")) {
+      body.append("isi_berita", body.get("isi_lengkap"));
+      body.delete("isi_lengkap");
+    }
+    if (body.has("gambar_url")) {
+      body.append("gambar", body.get("gambar_url"));
+      body.delete("gambar_url");
+    }
+  } else {
+    body = JSON.stringify({
+      judul_berita: data.judul || data.judul_berita,
+      ringkasan: data.ringkasan,
+      isi_berita: data.isi_lengkap || data.isi_berita,
+      status: data.status,
+      id_kategori: data.id_kategori,
+      read_time: data.read_time,
+      gambar: data.gambar_url || data.gambar,
+    });
+  }
+
   return apiFetch("/berita/", {
     method: "POST",
     auth: true,
@@ -164,7 +195,35 @@ export async function createArticle(data) {
 }
 
 export async function updateArticle(id, data) {
-  const body = data instanceof FormData ? data : JSON.stringify(data);
+  let body;
+
+  if (data instanceof FormData) {
+    body = data;
+    // Remap data FE agar match dengan field yang didefinisikan di Django serializer lu
+    if (body.has("judul")) {
+      body.append("judul_berita", body.get("judul"));
+      body.delete("judul");
+    }
+    if (body.has("isi_lengkap")) {
+      body.append("isi_berita", body.get("isi_lengkap"));
+      body.delete("isi_lengkap");
+    }
+    if (body.has("gambar_url")) {
+      body.append("gambar", body.get("gambar_url"));
+      body.delete("gambar_url");
+    }
+  } else {
+    body = JSON.stringify({
+      judul_berita: data.judul || data.judul_berita,
+      ringkasan: data.ringkasan,
+      isi_berita: data.isi_lengkap || data.isi_berita,
+      status: data.status,
+      id_kategori: data.id_kategori,
+      read_time: data.read_time,
+      gambar: data.gambar_url || data.gambar,
+    });
+  }
+
   return apiFetch(`/berita/${id}/`, {
     method: "PATCH",
     auth: true,

@@ -1,7 +1,9 @@
-// src/pages/WriteNews.jsx
+// src/dashboard/pages/user/WriteNews.jsx
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createArticle, fetchCategories } from "../../../services/api"; //  BENAR
+import axios from "axios"; // <--- Mengurus konversi gambar otomatis ke cloud
+import { createArticle, fetchCategories } from "../../../services/api";
+
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const MAX_WORDS = 400;
 
@@ -797,7 +799,7 @@ export default function WriteNews() {
     date: new Date().toLocaleDateString("id-ID"),
   });
 
-  const saveArticle = (status) => {
+  const saveArticle = async (status) => {
     const payload = buildPayload(status);
     const category = categories.find((item) => item.name === payload.category);
 
@@ -813,9 +815,21 @@ export default function WriteNews() {
     formData.append("id_kategori", category?.apiId);
     formData.append("read_time", payload.readTime);
 
+    let finalImageUrl = thumbnail;
+
     if (thumbnailFile) {
-      formData.append("gambar_url", thumbnailFile);
+      const imgData = new FormData();
+      imgData.append("image", thumbnailFile);
+
+      try {
+        const res = await axios.post("https://api.imgbb.com/1/upload?key=648f0775a28b62dbba48e4cfd185e58e", imgData);
+        finalImageUrl = res.data.data.url;
+      } catch (err) {
+        console.error("Gagal otomatis upload ke ImgBB pas bikin berita", err);
+      }
     }
+
+    formData.append("gambar_url", finalImageUrl);
 
     return createArticle(formData);
   };
@@ -827,34 +841,32 @@ export default function WriteNews() {
     }
 
     try {
+      showToast("Menyimpan draft...");
       await saveArticle("draft");
+      showToast("Draft Tersimpan", "saved");
+
+      setTimeout(() => {
+        navigate("/my-articles");
+      }, 1000);
     } catch (error) {
       showToast(error.message || "Gagal menyimpan draft", "saved");
-      return;
     }
-
-    showToast("Draft Tersimpan", "saved");
-
-    setTimeout(() => {
-      navigate("/my-articles");
-    }, 1000);
   };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
     try {
+      showToast("Mengirim artikel...");
       await saveArticle("pending");
+      showToast("Artikel Berhasil Dikirim", "submitted");
+
+      setTimeout(() => {
+        navigate("/my-articles");
+      }, 1000);
     } catch (error) {
       showToast(error.message || "Gagal mengirim artikel", "saved");
-      return;
     }
-
-    showToast("Artikel Berhasil Dikirim", "submitted");
-
-    setTimeout(() => {
-      navigate("/my-articles");
-    }, 1000);
   };
 
   return (

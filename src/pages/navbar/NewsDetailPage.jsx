@@ -1,6 +1,8 @@
+// src/pages/NewsDetailPage.jsx
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useArticle, useArticles } from "../../hooks/useApiData";
+import { getAccessToken } from "../../services/api"; // <--- Mengimpor fungsi pembaca token dinamis
 import "../../styles/articleDetail.css";
 
 const FALLBACK_IMAGE =
@@ -37,7 +39,7 @@ function PopularSidebar({ articles, currentId }) {
             className="popular-detail-item"
           >
             <span className="popular-detail-category">
-              {item.category || "Environment"}
+              {item.category || "General"}
             </span>
 
             <h5>{item.title}</h5>
@@ -130,7 +132,6 @@ function AuthFooter() {
 }
 
 function CommentSection({ comments = [], isLoggedIn }) {
-
   return (
     <section className="comment-section">
       <div className="comment-header-row">
@@ -152,7 +153,7 @@ function CommentSection({ comments = [], isLoggedIn }) {
 
           <textarea
             className="comment-textarea"
-            placeholder="Add to the conversation..."
+            placeholder={isLoggedIn ? "Add to the conversation..." : "Please login to comment..."}
             disabled={!isLoggedIn}
           />
         </div>
@@ -206,11 +207,8 @@ export default function NewsDetailPage() {
   const { articles } = useArticles();
   const [isFullArticle, setIsFullArticle] = useState(false);
 
-  /*
-    true  = sudah login, AuthSidebar & AuthFooter hilang
-    false = belum login, AuthSidebar & AuthFooter muncul
-  */
-  const [isLoggedIn] = useState(true);
+  // LOGIC BARU: Deteksi status login secara dinamis dari token asli, bukan hardcoded true
+  const isLoggedIn = Boolean(getAccessToken());
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -242,7 +240,7 @@ export default function NewsDetailPage() {
           <article className="article-detail-card">
             <div className="article-hero-box">
               <span className="article-floating-badge">
-                {article.category || "Environment"}
+                {article.category || "General"}
               </span>
 
               <img
@@ -256,16 +254,13 @@ export default function NewsDetailPage() {
             </div>
 
             <h1 className="article-detail-title">
-              {getText(
-                article.title,
-                "Heningnya Udara Hutan Kalimantan Timur Menarik Minat Investor BUMS"
-              )}
+              {getText(article.title, "Untitled Article")}
             </h1>
 
             <div className="article-meta-row">
               <div className="article-author-box">
                 <img
-                  src={article.authorImage || "/img/author.png"}
+                  src={article.authorAvatar || "/img/author.png"}
                   alt={article.author || "Author"}
                   className="article-author-avatar"
                   onError={(event) => {
@@ -279,38 +274,32 @@ export default function NewsDetailPage() {
                   </h4>
 
                   <p className="article-author-role">
-                    {article.role || "Jurnalisme Junior"}
+                    {article.role || "Jurnalis"}
                   </p>
                 </div>
               </div>
 
               <div className="article-date-box">
                 <span className="article-date">
-                  {article.date || "12 April 2026"}
+                  {article.date}
                 </span>
 
                 <span className="article-read-summary">
-                  {article.readTime || "2 MIN READ SUMMARY"}
+                  {article.readTime}
                 </span>
               </div>
             </div>
 
             <div className="article-body">
-              <p>
-                {article.description ||
-                  "Hutan Kalimantan Timur kembali menarik perhatian, bukan hanya karena keanekaragaman hayatinya, tetapi juga kualitas udaranya yang masih alami. Suasana hening dan udara bersih di kawasan ini mulai dilirik oleh investor sebagai peluang baru di sektor ekowisata."}
-              </p>
-
-              {isFullArticle && (
-                <div className="article-full-text">
+              {/* REVISI LOGIC: Menampilkan teks berita dinamis sesuai state View Full atau Summary */}
+              {!isFullArticle ? (
+                <p style={{ whiteSpace: "pre-line" }}>
+                  {article.synopsis || article.excerpt || "Ringkasan berita belum tersedia."}
+                </p>
+              ) : (
+                <div className="article-full-text" style={{ whiteSpace: "pre-line" }}>
                   <p>
-                    {article.summary ||
-                      "Sejumlah rencana pengembangan mulai bermunculan, seperti pembangunan eco-lodge, jalur trekking terbatas, hingga program edukasi lingkungan. Konsepnya menekankan wisata berkelanjutan, memberi pengalaman dekat dengan alam tanpa merusak ekosistem."}
-                  </p>
-
-                  <p>
-                    {article.content ||
-                      "Pemerintah daerah menyatakan dukungan dengan syarat adanya keseimbangan antara ekonomi dan pelestarian. Kolaborasi antara investor, pemerintah, dan masyarakat lokal dinilai menjadi kunci. Fenomena ini menunjukkan bahwa hutan bukan hanya aset alam, tetapi juga peluang selama dikelola dengan bijak."}
+                    {article.body || article.content || "Isi berita lengkap belum tersedia."}
                   </p>
                 </div>
               )}
@@ -331,23 +320,23 @@ export default function NewsDetailPage() {
                 <span className="article-reaction-label">REACTIONS:</span>
 
                 <button type="button" className="article-reaction-pill">
-                  👏 {reactions.clap || 142}
+                  👏 {reactions.clap || 0}
                 </button>
 
                 <button type="button" className="article-reaction-pill">
-                  💡 {reactions.light || 86}
+                  💡 {reactions.light || 0}
                 </button>
 
                 <button type="button" className="article-reaction-pill">
-                  🤔 {reactions.think || reactions.idea || 54}
+                  🤔 {reactions.think || reactions.idea || 0}
                 </button>
 
                 <button type="button" className="article-reaction-pill">
-                  💙 {reactions.bookmark || 12}
+                  💙 {reactions.bookmark || 0}
                 </button>
 
                 <button type="button" className="article-reaction-pill">
-                  ❤️ {reactions.heart || 210}
+                  ❤️ {reactions.heart || article.likes || 0}
                 </button>
               </div>
             </div>

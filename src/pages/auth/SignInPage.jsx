@@ -44,7 +44,7 @@ export default function SignInPage() {
 
         <form className="signin-form" onSubmit={handleSubmit}>
           <div className="signin-input-group">
-            <label>Email <span className="req">*</span></label>
+            <label>Username <span className="req">*</span></label>
             <div className="signin-input-wrap">
               <Mail size={18} className="signin-icon" />
               <input
