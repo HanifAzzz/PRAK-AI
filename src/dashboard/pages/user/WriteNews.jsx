@@ -822,7 +822,7 @@ export default function WriteNews() {
       imgData.append("image", thumbnailFile);
 
       try {
-        const res = await axios.post("https://api.imgbb.com/1/upload?key=648f0775a28b62dbba48e4cfd185e58e", imgData);
+        const res = await axios.post("https://api.imgbb.com/1/upload?key=f39b531fc935356631aa04791d178700", imgData);
         finalImageUrl = res.data.data.url;
       } catch (err) {
         console.error("Gagal otomatis upload ke ImgBB pas bikin berita", err);

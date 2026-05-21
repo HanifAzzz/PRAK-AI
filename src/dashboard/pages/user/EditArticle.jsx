@@ -824,7 +824,7 @@ export default function EditArticle() {
 
       try {
         // Otomatis convert gambar mentah ke cloud link string URL via ImgBB
-        const res = await axios.post("https://api.imgbb.com/1/upload?key=648f0775a28b62dbba48e4cfd185e58e", imgData);
+        const res = await axios.post("https://api.imgbb.com/1/upload?key=f39b531fc935356631aa04791d178700", imgData);
         finalImageUrl = res.data.data.url; 
       } catch (err) {
         console.error("Gagal otomatis upload ke ImgBB di sisi penulis", err);
